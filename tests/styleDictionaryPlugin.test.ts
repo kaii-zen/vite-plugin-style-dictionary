@@ -29,7 +29,13 @@ vi.mock('style-dictionary', () => {
   return { default: StyleDictionaryMock };
 });
 
-import styleDictionaryPlugin, { __testing } from '../src/index';
+import styleDictionaryPlugin from '../src/index';
+import {
+  createTokensLoader,
+  getGeneratedFiles,
+  isRelevantChange,
+  parseTokenModule,
+} from '../src/internal';
 import { createServer } from 'vite';
 import StyleDictionary, { type Config } from 'style-dictionary';
 
@@ -84,7 +90,7 @@ describe('token loading', () => {
       config: { root },
       ssrLoadModule: vi.fn().mockResolvedValue({ default: { color: 'red' } }),
     };
-    const loadTokens = __testing.createTokensLoader(() => server as never);
+    const loadTokens = createTokensLoader(() => server as never);
 
     const tokens = await loadTokens('/root/project/tokens.ts');
 
@@ -99,7 +105,7 @@ describe('token loading', () => {
       config: { root },
       ssrLoadModule: vi.fn().mockResolvedValue(moduleValue),
     };
-    const loadTokens = __testing.createTokensLoader(() => server as never);
+    const loadTokens = createTokensLoader(() => server as never);
 
     const tokens = await loadTokens('/root/project/tokens.ts');
 
@@ -110,7 +116,7 @@ describe('token loading', () => {
     const loadTokens = vi.fn().mockResolvedValue('not-an-object');
 
     await expect(
-      __testing.parseTokenModule(
+      parseTokenModule(
         { contents: '', filePath: '/root/project/tokens.ts' },
         loadTokens,
       ),
@@ -309,10 +315,10 @@ describe('HMR relevance and generated outputs', () => {
       },
     };
 
-    expect(__testing.isRelevantChange(server as never, ['tokens.ts'], tokensFile)).toBe(true);
-    expect(__testing.isRelevantChange(server as never, ['tokens.ts'], depFile)).toBe(true);
+    expect(isRelevantChange(server as never, ['tokens.ts'], tokensFile)).toBe(true);
+    expect(isRelevantChange(server as never, ['tokens.ts'], depFile)).toBe(true);
     expect(
-      __testing.isRelevantChange(
+      isRelevantChange(
         server as never,
         ['tokens.ts'],
         path.join(root, 'unrelated.ts'),
@@ -322,7 +328,7 @@ describe('HMR relevance and generated outputs', () => {
 
   it('resolves generated file destinations with buildPath', () => {
     const root = '/root/project';
-    const files = __testing.getGeneratedFiles(
+    const files = getGeneratedFiles(
       {
         platforms: {
           web: {
