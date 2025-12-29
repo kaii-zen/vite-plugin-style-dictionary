@@ -1,9 +1,8 @@
 {
   "name": "vite-plugin-style-dictionary",
   "version": "0.0.1",
-  "private": true,
   "type": "module",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
