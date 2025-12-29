@@ -3,7 +3,7 @@ import type { ModuleNode, ViteDevServer } from 'vite';
 import type { Config } from 'style-dictionary';
 import type { DesignTokens, ParserOptions } from 'style-dictionary/types';
 import path from 'node:path';
-import _ from 'lodash';
+import { castArray } from 'lodash-es';
 
 const DEFAULT_ENTRY = path.resolve(process.cwd(), 'tokens.ts');
 
@@ -42,7 +42,7 @@ export function createTokensLoader(
 }
 
 export const normalizeSources = (source?: string[] | string) =>
-  _.castArray(source);
+  castArray(source);
 
 export const toAbsoluteGlobs = (root: string, sources: string[]) =>
   sources.map((source) =>
@@ -111,7 +111,7 @@ export const getGeneratedFiles = ({ platforms }: Config, root: string): string[]
   Object.values(platforms ?? {})
     .map(({ buildPath, files }) => ({
       buildPath: path.resolve(root, buildPath || ''),
-      files: _.castArray(files),
+      files: castArray(files),
     }))
     .flatMap(({ buildPath, files }) =>
       files.map(({ destination }) =>

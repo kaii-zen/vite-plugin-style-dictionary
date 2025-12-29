@@ -1,10 +1,11 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import path from 'node:path';
+import { castArray } from 'lodash-es';
 
 vi.mock('vite', () => {
   const createServer = vi.fn();
   const createFilter = (includes: string[] | string) => {
-    const includeList = Array.isArray(includes) ? includes : [includes];
+    const includeList = castArray(includes);
     const includeSet = new Set(includeList);
     return (id: string) => includeSet.has(id);
   };
