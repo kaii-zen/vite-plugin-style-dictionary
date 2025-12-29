@@ -265,3 +265,11 @@ const getGeneratedFiles = ({ platforms }: Config, root: string): string[] =>
         path.resolve(buildPath, destination || ''),
       ),
     );
+
+export const __testing = {
+  createTokensLoader,
+  parseTokenModule,
+  getGeneratedFiles,
+  isRelevantChange,
+  toViteModuleId,
+};
