@@ -1,0 +1,37 @@
+{
+  "name": "vite-plugin-style-dictionary",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "license": "UNLICENSED",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "dev": "tsup src/index.ts --format esm --dts --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "lodash": "^4.17.21",
+    "style-dictionary": "^5.1.1"
+  },
+  "peerDependencies": {
+    "vite": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.17.16",
+    "@types/node": "^20.19.3",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.0",
+    "vite": "^7.0.4"
+  }
+}
