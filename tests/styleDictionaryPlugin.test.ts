@@ -89,6 +89,9 @@ describe('token loading', () => {
     const root = '/root/project';
     const server = {
       config: { root },
+      pluginContainer: {
+        resolveId: vi.fn().mockResolvedValue({ id: '/root/project/tokens.ts' }),
+      },
       ssrLoadModule: vi.fn().mockResolvedValue({ default: { color: 'red' } }),
     };
     const loadTokens = createTokensLoader(() => server as never);
@@ -96,7 +99,7 @@ describe('token loading', () => {
     const tokens = await loadTokens('/root/project/tokens.ts');
 
     expect(tokens).toEqual({ color: 'red' });
-    expect(server.ssrLoadModule).toHaveBeenCalledWith('/tokens.ts');
+    expect(server.ssrLoadModule).toHaveBeenCalledWith('/root/project/tokens.ts');
   });
 
   it('falls back to module when default export is missing', async () => {
@@ -104,6 +107,9 @@ describe('token loading', () => {
     const moduleValue = { size: '12px' };
     const server = {
       config: { root },
+      pluginContainer: {
+        resolveId: vi.fn().mockResolvedValue({ id: '/root/project/tokens.ts' }),
+      },
       ssrLoadModule: vi.fn().mockResolvedValue(moduleValue),
     };
     const loadTokens = createTokensLoader(() => server as never);
@@ -111,6 +117,25 @@ describe('token loading', () => {
     const tokens = await loadTokens('/root/project/tokens.ts');
 
     expect(tokens).toEqual(moduleValue);
+  });
+
+  it('resolves directory sources to index files', async () => {
+    const root = '/root/project';
+    const server = {
+      config: { root },
+      pluginContainer: {
+        resolveId: vi.fn().mockResolvedValue({
+          id: '/root/project/tokens/index.ts',
+        }),
+      },
+      ssrLoadModule: vi.fn().mockResolvedValue({ default: { color: 'red' } }),
+    };
+    const loadTokens = createTokensLoader(() => server as never);
+
+    const tokens = await loadTokens('/root/project/tokens');
+
+    expect(tokens).toEqual({ color: 'red' });
+    expect(server.ssrLoadModule).toHaveBeenCalledWith('/root/project/tokens/index.ts');
   });
 
   it('requires a default export object', async () => {

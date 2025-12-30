@@ -35,7 +35,9 @@ export function createTokensLoader(
     }
 
     const sourceFile = filePath ?? DEFAULT_ENTRY;
-    const moduleId = toViteModuleId(server.config.root, sourceFile);
+    const entryFile = await resolveTokenEntry(server, sourceFile);
+    const moduleId =
+      entryFile ?? toViteModuleId(server.config.root, sourceFile);
     const module = await server.ssrLoadModule(moduleId);
     return (module?.default ?? module) as DesignTokens;
   };
@@ -105,6 +107,25 @@ export function toViteModuleId(root: string, filePath: string) {
   }
 
   return `/@fs/${normalizedFile.split(path.sep).join('/')}`;
+}
+
+async function resolveTokenEntry(
+  server: ViteDevServer,
+  sourceFile: string,
+): Promise<string | null> {
+  const resolved = await server.pluginContainer.resolveId(
+    sourceFile,
+    undefined,
+    { ssr: true },
+  );
+  if (
+    !resolved?.id ||
+    resolved.id.startsWith('\0') ||
+    resolved.id.startsWith('virtual:')
+  ) {
+    return null;
+  }
+  return resolved.id;
 }
 
 export const getGeneratedFiles = ({ platforms }: Config, root: string): string[] =>
