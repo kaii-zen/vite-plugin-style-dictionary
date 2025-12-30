@@ -51,21 +51,25 @@ export const toAbsoluteGlobs = (root: string, sources: string[]) =>
     path.isAbsolute(source) ? source : path.join(root, source),
   );
 
-export function isRelevantChange(
+export async function isRelevantChange(
   server: ViteDevServer,
   sources: string[],
   changedFile: string,
-) {
+): Promise<boolean> {
   const { root } = server.config;
   const include = createFilter(toAbsoluteGlobs(root, sources));
   if (include(changedFile)) return true;
 
   const isGlob = (source: string) => /[*?[\]]/.test(source);
-  const entryFiles = sources
-    .filter((source) => !isGlob(source))
-    .map((source) =>
-      path.isAbsolute(source) ? source : path.join(root, source),
-    );
+  const entryFiles = await Promise.all(
+    sources.filter((source) => !isGlob(source)).map(async (source) => {
+      const absoluteSource = path.isAbsolute(source)
+        ? source
+        : path.join(root, source);
+      const resolved = await resolveTokenEntry(server, absoluteSource);
+      return resolved ?? absoluteSource;
+    }),
+  );
   const entryModules = entryFiles.flatMap((file) =>
     Array.from(server.moduleGraph.getModulesByFile(file) ?? []),
   );

@@ -59,7 +59,7 @@ export default function styleDictionaryPlugin(sdConfig: Config): Plugin {
     },
     async handleHotUpdate(ctx) {
       if (isTestRun(ctx.server.config)) return undefined;
-      if (!isRelevantChange(ctx.server, sources, ctx.file)) return undefined;
+      if (!(await isRelevantChange(ctx.server, sources, ctx.file))) return undefined;
 
       await buildStyleDictionary(config, ctx.server.config.logger);
 
