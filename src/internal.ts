@@ -53,8 +53,6 @@ export async function resolveSourceEntries(
   source?: string[] | string,
 ): Promise<string[]> {
   const sources = normalizeSources(source);
-  if (sources.length === 0) return [];
-
   const { root } = server.config;
   return Promise.all(
     sources.map(async (entry) => {
