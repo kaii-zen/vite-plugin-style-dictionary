@@ -44,7 +44,27 @@ export function createTokensLoader(
 }
 
 export const normalizeSources = (source?: string[] | string) =>
-  castArray(source);
+  source ? castArray(source) : [];
+
+const isGlob = (source: string) => /[*?[\]]/.test(source);
+
+export async function resolveSourceEntries(
+  server: ViteDevServer,
+  source?: string[] | string,
+): Promise<string[]> {
+  const sources = normalizeSources(source);
+  const { root } = server.config;
+  return Promise.all(
+    sources.map(async (entry) => {
+      if (isGlob(entry)) return entry;
+      const absoluteSource = path.isAbsolute(entry)
+        ? entry
+        : path.join(root, entry);
+      const resolved = await resolveTokenEntry(server, absoluteSource);
+      return resolved ?? absoluteSource;
+    }),
+  );
+}
 
 export const toAbsoluteGlobs = (root: string, sources: string[]) =>
   sources.map((source) =>
@@ -60,7 +80,6 @@ export async function isRelevantChange(
   const include = createFilter(toAbsoluteGlobs(root, sources));
   if (include(changedFile)) return true;
 
-  const isGlob = (source: string) => /[*?[\]]/.test(source);
   const entryFiles = await Promise.all(
     sources.filter((source) => !isGlob(source)).map(async (source) => {
       const absoluteSource = path.isAbsolute(source)

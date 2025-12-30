@@ -12,6 +12,7 @@ import {
   isRelevantChange,
   normalizeSources,
   parseTokenModule,
+  resolveSourceEntries,
   toAbsoluteGlobs,
   type TokensLoader,
 } from './internal';
@@ -33,14 +34,14 @@ export default function styleDictionaryPlugin(sdConfig: Config): Plugin {
       if (isTestRun(server.config)) return;
       devServer = server;
       server.watcher.add(toAbsoluteGlobs(server.config.root, sources));
-      await buildStyleDictionary(config, server.config.logger);
+      await buildStyleDictionary(config, server.config.logger, server);
     },
     async configResolved(resolved) {
       if (isTestRun(resolved)) {
         await withTokenServer(resolved, async (server) => {
           devServer = server;
           try {
-            await buildStyleDictionary(config, resolved.logger);
+            await buildStyleDictionary(config, resolved.logger, server);
           } finally {
             devServer = null;
           }
@@ -51,7 +52,7 @@ export default function styleDictionaryPlugin(sdConfig: Config): Plugin {
       await withTokenServer(resolved, async (server) => {
         devServer = server;
         try {
-          await buildStyleDictionary(config, resolved.logger);
+          await buildStyleDictionary(config, resolved.logger, server);
         } finally {
           devServer = null;
         }
@@ -61,7 +62,7 @@ export default function styleDictionaryPlugin(sdConfig: Config): Plugin {
       if (isTestRun(ctx.server.config)) return undefined;
       if (!(await isRelevantChange(ctx.server, sources, ctx.file))) return undefined;
 
-      await buildStyleDictionary(config, ctx.server.config.logger);
+      await buildStyleDictionary(config, ctx.server.config.logger, ctx.server);
 
       return getGeneratedFiles(sdConfig, ctx.server.config.root)
         .map((file) => ctx.server.moduleGraph.getModuleById(file))
@@ -148,9 +149,16 @@ const filterTokenPlugins = (plugins: readonly Plugin[]) =>
       plugin.name !== PLUGIN_NAME && !plugin.name.startsWith('vitest:'),
   );
 
-async function buildStyleDictionary(sdConfig: Config, logger: Logger) {
+async function buildStyleDictionary(
+  sdConfig: Config,
+  logger: Logger,
+  server: ViteDevServer,
+) {
   try {
-    const sd = new StyleDictionary(sdConfig);
+    const sources = await resolveSourceEntries(server, sdConfig.source);
+    const config =
+      sources.length > 0 ? { ...sdConfig, source: sources } : sdConfig;
+    const sd = new StyleDictionary(config);
     await sd.buildAllPlatforms();
   } catch (error) {
     logger.error('[vite:style-dictionary] Build failed:', {
