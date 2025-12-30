@@ -89,6 +89,9 @@ describe('token loading', () => {
     const root = '/root/project';
     const server = {
       config: { root },
+      pluginContainer: {
+        resolveId: vi.fn().mockResolvedValue({ id: '/root/project/tokens.ts' }),
+      },
       ssrLoadModule: vi.fn().mockResolvedValue({ default: { color: 'red' } }),
     };
     const loadTokens = createTokensLoader(() => server as never);
@@ -96,7 +99,7 @@ describe('token loading', () => {
     const tokens = await loadTokens('/root/project/tokens.ts');
 
     expect(tokens).toEqual({ color: 'red' });
-    expect(server.ssrLoadModule).toHaveBeenCalledWith('/tokens.ts');
+    expect(server.ssrLoadModule).toHaveBeenCalledWith('/root/project/tokens.ts');
   });
 
   it('falls back to module when default export is missing', async () => {
@@ -104,6 +107,9 @@ describe('token loading', () => {
     const moduleValue = { size: '12px' };
     const server = {
       config: { root },
+      pluginContainer: {
+        resolveId: vi.fn().mockResolvedValue({ id: '/root/project/tokens.ts' }),
+      },
       ssrLoadModule: vi.fn().mockResolvedValue(moduleValue),
     };
     const loadTokens = createTokensLoader(() => server as never);
@@ -111,6 +117,25 @@ describe('token loading', () => {
     const tokens = await loadTokens('/root/project/tokens.ts');
 
     expect(tokens).toEqual(moduleValue);
+  });
+
+  it('resolves directory sources to index files', async () => {
+    const root = '/root/project';
+    const server = {
+      config: { root },
+      pluginContainer: {
+        resolveId: vi.fn().mockResolvedValue({
+          id: '/root/project/tokens/index.ts',
+        }),
+      },
+      ssrLoadModule: vi.fn().mockResolvedValue({ default: { color: 'red' } }),
+    };
+    const loadTokens = createTokensLoader(() => server as never);
+
+    const tokens = await loadTokens('/root/project/tokens');
+
+    expect(tokens).toEqual({ color: 'red' });
+    expect(server.ssrLoadModule).toHaveBeenCalledWith('/root/project/tokens/index.ts');
   });
 
   it('requires a default export object', async () => {
@@ -147,6 +172,9 @@ describe('build timing and HMR behavior', () => {
         mode: 'development',
         command: 'serve',
         logger: { error: vi.fn() },
+      },
+      pluginContainer: {
+        resolveId: vi.fn().mockResolvedValue({ id: tokensFile }),
       },
       watcher: { add: vi.fn() },
       moduleGraph: {
@@ -291,7 +319,7 @@ describe('build timing and HMR behavior', () => {
 });
 
 describe('HMR relevance and generated outputs', () => {
-  it('treats token source and its imports as relevant for rebuilds', () => {
+  it('treats token source and its imports as relevant for rebuilds', async () => {
     const root = '/root/project';
     const tokensFile = path.join(root, 'tokens.ts');
     const depFile = path.join(root, 'colors.ts');
@@ -307,6 +335,9 @@ describe('HMR relevance and generated outputs', () => {
 
     const server = {
       config: { root },
+      pluginContainer: {
+        resolveId: vi.fn().mockResolvedValue({ id: tokensFile }),
+      },
       moduleGraph: {
         getModulesByFile: (file: string) => {
           if (file === tokensFile) return new Set([entryModule]);
@@ -316,15 +347,40 @@ describe('HMR relevance and generated outputs', () => {
       },
     };
 
-    expect(isRelevantChange(server as never, ['tokens.ts'], tokensFile)).toBe(true);
-    expect(isRelevantChange(server as never, ['tokens.ts'], depFile)).toBe(true);
+    expect(await isRelevantChange(server as never, ['tokens.ts'], tokensFile)).toBe(true);
+    expect(await isRelevantChange(server as never, ['tokens.ts'], depFile)).toBe(true);
     expect(
-      isRelevantChange(
+      await isRelevantChange(
         server as never,
         ['tokens.ts'],
         path.join(root, 'unrelated.ts'),
       ),
     ).toBe(false);
+  });
+
+  it('treats directory token sources as relevant for rebuilds', async () => {
+    const root = '/root/project';
+    const tokensDir = path.join(root, 'tokens');
+    const entryFile = path.join(tokensDir, 'index.ts');
+    const entryModule = {
+      importedModules: new Set<unknown>(),
+      ssrImportedModules: new Set<unknown>(),
+    };
+
+    const server = {
+      config: { root },
+      pluginContainer: {
+        resolveId: vi.fn().mockResolvedValue({ id: entryFile }),
+      },
+      moduleGraph: {
+        getModulesByFile: (file: string) => {
+          if (file === entryFile) return new Set([entryModule]);
+          return new Set();
+        },
+      },
+    };
+
+    expect(await isRelevantChange(server as never, ['tokens'], entryFile)).toBe(true);
   });
 
   it('resolves generated file destinations with buildPath', () => {
