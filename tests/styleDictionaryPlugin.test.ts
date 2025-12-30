@@ -221,7 +221,13 @@ describe('build timing and HMR behavior', () => {
     resetVitestDetection();
     const root = '/root/project';
     const close = vi.fn().mockResolvedValue(undefined);
-    createServerMock.mockResolvedValue({ close });
+    createServerMock.mockResolvedValue({
+      close,
+      config: { root },
+      pluginContainer: {
+        resolveId: vi.fn().mockResolvedValue({ id: path.join(root, 'tokens.ts') }),
+      },
+    });
 
     const plugin = styleDictionaryPlugin({
       source: ['tokens.ts'],
@@ -260,7 +266,13 @@ describe('build timing and HMR behavior', () => {
   it('builds once in test mode without attaching watchers', async () => {
     const root = '/root/project';
     const close = vi.fn().mockResolvedValue(undefined);
-    createServerMock.mockResolvedValue({ close });
+    createServerMock.mockResolvedValue({
+      close,
+      config: { root },
+      pluginContainer: {
+        resolveId: vi.fn().mockResolvedValue({ id: path.join(root, 'tokens.ts') }),
+      },
+    });
 
     const plugin = styleDictionaryPlugin({
       source: ['tokens.ts'],
@@ -315,6 +327,47 @@ describe('build timing and HMR behavior', () => {
       }),
     );
     expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it('resolves directory sources before building', async () => {
+    resetVitestDetection();
+    const root = '/root/project';
+    const entryFile = path.join(root, 'tokens', 'index.ts');
+    const server = {
+      config: {
+        root,
+        mode: 'development',
+        command: 'serve',
+        logger: { error: vi.fn() },
+      },
+      pluginContainer: {
+        resolveId: vi.fn().mockResolvedValue({ id: entryFile }),
+      },
+      watcher: { add: vi.fn() },
+      moduleGraph: {
+        getModuleByFile: vi.fn(),
+      },
+    };
+
+    const plugin = styleDictionaryPlugin({
+      source: ['tokens'],
+      platforms: {
+        web: {
+          buildPath: 'dist',
+          files: [{ destination: 'tokens.json' }],
+        },
+      },
+    });
+
+    await runHook(plugin.configureServer, server as never);
+
+    const instance = StyleDictionaryMock.instances[0] as
+      | { config: Config }
+      | undefined;
+    if (!instance) {
+      throw new Error('Expected StyleDictionary to be instantiated');
+    }
+    expect(castArray(instance.config.source)).toEqual([entryFile]);
   });
 });
 
