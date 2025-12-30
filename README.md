@@ -103,6 +103,8 @@ The plugin does not introduce custom options. Pass your Style Dictionary `Config
 
 ## Contributing
 
+See `CONTRIBUTING.md` for workflow details and commit/PR conventions.
+
     npm install
     npm run dev
     npm run test
