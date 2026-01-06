@@ -7,8 +7,9 @@ describe('normalizeViteIdForPlatform', () => {
     const id = '/@fs//?/C:/Users/Runner/AppData/Local/Temp/vite-sd/tokens.ts';
 
     const normalized = normalizeViteIdForPlatform(id, 'win32', realpathSync);
+    const normalizedForAssert = normalized.replace(/\\/g, '/');
 
-    expect(normalized).toBe(
+    expect(normalizedForAssert).toBe(
       '/@fs/C:/Users/Runner/AppData/Local/Temp/vite-sd/tokens.ts',
     );
     expect(realpathSync).toHaveBeenCalledWith(
