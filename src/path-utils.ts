@@ -15,6 +15,13 @@ const WINDOWS_NAMESPACE_PREFIXES: Array<[RegExp, string]> = [
   [/^\/+\?\//, ''],
 ];
 
+const toPosixPath = (value: string) => value.replace(/\\/g, '/');
+
+const normalizeVitePath = (value: string, platform: NodeJS.Platform) =>
+  platform === 'win32'
+    ? path.posix.normalize(toPosixPath(value))
+    : normalizePath(value);
+
 const stripWindowsNamespace = (value: string) => {
   let result = value;
   for (const [pattern, replacement] of WINDOWS_NAMESPACE_PREFIXES) {
@@ -41,7 +48,7 @@ export const normalizeViteIdForPlatform = (
   try {
     const resolvedPath = path.win32.resolve(rawPath);
     const realPath = stripWindowsNamespace(realpathSync(resolvedPath));
-    return prefix ? `${prefix}${normalizePath(realPath)}` : realPath;
+    return prefix ? `${prefix}${normalizeVitePath(realPath, platform)}` : realPath;
   } catch {
     return id;
   }
