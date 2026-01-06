@@ -1,39 +1,27 @@
-import { createFilter } from 'vite';
+import { createFilter, normalizePath } from 'vite';
 import type { ModuleNode, ViteDevServer } from 'vite';
 import type { Config } from 'style-dictionary';
 import type { DesignTokens, ParserOptions } from 'style-dictionary/types';
+import fs from 'node:fs';
 import path from 'node:path';
 import { castArray } from 'lodash-es';
 
 const DEFAULT_ENTRY = path.resolve(process.cwd(), 'tokens.ts');
 const VITE_FS_PREFIX = '/@fs/';
-const WINDOWS_LONG_PATH_PREFIX = '\\\\?\\';
-const WINDOWS_LONG_PATH_PREFIX_POSIX = '//?/';
-const WINDOWS_LONG_PATH_UNC_PREFIX = '\\\\?\\UNC\\';
-const WINDOWS_LONG_PATH_UNC_PREFIX_POSIX = '//?/UNC/';
-
-const stripWindowsLongPathPrefix = (value: string) => {
-  if (value.startsWith(WINDOWS_LONG_PATH_UNC_PREFIX)) {
-    return `\\\\${value.slice(WINDOWS_LONG_PATH_UNC_PREFIX.length)}`;
-  }
-  if (value.startsWith(WINDOWS_LONG_PATH_UNC_PREFIX_POSIX)) {
-    return `//${value.slice(WINDOWS_LONG_PATH_UNC_PREFIX_POSIX.length)}`;
-  }
-  if (value.startsWith(WINDOWS_LONG_PATH_PREFIX)) {
-    return value.slice(WINDOWS_LONG_PATH_PREFIX.length);
-  }
-  if (value.startsWith(WINDOWS_LONG_PATH_PREFIX_POSIX)) {
-    return value.slice(WINDOWS_LONG_PATH_PREFIX_POSIX.length);
-  }
-  return value;
-};
 
 const normalizeViteId = (id: string) => {
-  if (id.startsWith(VITE_FS_PREFIX)) {
-    const rest = id.slice(VITE_FS_PREFIX.length);
-    return `${VITE_FS_PREFIX}${stripWindowsLongPathPrefix(rest)}`;
+  if (process.platform !== 'win32') return id;
+
+  const hasFsPrefix = id.startsWith(VITE_FS_PREFIX);
+  const rawPath = hasFsPrefix ? id.slice(VITE_FS_PREFIX.length) : id;
+  if (!path.isAbsolute(rawPath)) return id;
+
+  try {
+    const realPath = fs.realpathSync(rawPath);
+    return hasFsPrefix ? `${VITE_FS_PREFIX}${normalizePath(realPath)}` : realPath;
+  } catch {
+    return id;
   }
-  return stripWindowsLongPathPrefix(id);
 };
 
 export type TokensLoader = (filePath?: string) => Promise<DesignTokens>;
