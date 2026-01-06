@@ -54,8 +54,8 @@ describe('style dictionary integration with resolved paths', () => {
         'production',
       );
 
-      const output = await fs.readFile(fixture.outputFile, 'utf8');
-      expect(output).toContain('"color"');
+      const output = JSON.parse(await fs.readFile(fixture.outputFile, 'utf8'));
+      expect(output.color.brand.value).toBe('#2798f5');
     } finally {
       await fs.rm(fixture.root, { recursive: true, force: true });
     }
