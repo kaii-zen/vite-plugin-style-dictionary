@@ -14,10 +14,11 @@ const normalizeViteId = (id: string) => {
 
   const hasFsPrefix = id.startsWith(VITE_FS_PREFIX);
   const rawPath = hasFsPrefix ? id.slice(VITE_FS_PREFIX.length) : id;
-  if (!path.isAbsolute(rawPath)) return id;
+  if (!path.win32.isAbsolute(rawPath)) return id;
 
   try {
-    const realPath = fs.realpathSync(rawPath);
+    const resolvedPath = path.win32.resolve(rawPath);
+    const realPath = fs.realpathSync(resolvedPath);
     return hasFsPrefix ? `${VITE_FS_PREFIX}${normalizePath(realPath)}` : realPath;
   } catch {
     return id;
