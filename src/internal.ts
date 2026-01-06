@@ -4,9 +4,9 @@ import type { Config } from 'style-dictionary';
 import type { DesignTokens, ParserOptions } from 'style-dictionary/types';
 import path from 'node:path';
 import { castArray } from 'lodash-es';
+import { normalizeViteId } from './path-utils';
 
 const DEFAULT_ENTRY = path.resolve(process.cwd(), 'tokens.ts');
-
 export type TokensLoader = (filePath?: string) => Promise<DesignTokens>;
 
 export async function parseTokenModule(
@@ -34,10 +34,12 @@ export function createTokensLoader(
       throw new Error('[style-dictionary] Vite server is not available');
     }
 
-    const sourceFile = filePath ?? DEFAULT_ENTRY;
+    const sourceFile = normalizeViteId(filePath ?? DEFAULT_ENTRY);
     const entryFile = await resolveTokenEntry(server, sourceFile);
     const moduleId =
-      entryFile ?? toViteModuleId(server.config.root, sourceFile);
+      normalizeViteId(
+        entryFile ?? toViteModuleId(server.config.root, sourceFile),
+      );
     const module = await server.ssrLoadModule(moduleId);
     return (module?.default ?? module) as DesignTokens;
   };
@@ -136,8 +138,9 @@ async function resolveTokenEntry(
   server: ViteDevServer,
   sourceFile: string,
 ): Promise<string | null> {
+  const normalizedSource = normalizeViteId(sourceFile);
   const resolved = await server.pluginContainer.resolveId(
-    sourceFile,
+    normalizedSource,
     undefined,
     { ssr: true },
   );
@@ -148,7 +151,7 @@ async function resolveTokenEntry(
   ) {
     return null;
   }
-  return resolved.id;
+  return normalizeViteId(resolved.id);
 }
 
 export const getGeneratedFiles = ({ platforms }: Config, root: string): string[] =>
