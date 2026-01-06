@@ -1,7 +1,7 @@
 {
   "name": "vite-plugin-style-dictionary",
   "description": "Vite plugin that runs Style Dictionary using Vite's module graph.",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "license": "MIT",
   "repository": {
