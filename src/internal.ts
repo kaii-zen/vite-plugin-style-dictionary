@@ -9,17 +9,28 @@ import { castArray } from 'lodash-es';
 const DEFAULT_ENTRY = path.resolve(process.cwd(), 'tokens.ts');
 const VITE_FS_PREFIX = '/@fs/';
 
+const stripWindowsNamespace = (value: string) =>
+  value
+    .replace(/^\\\\\?\\UNC\\/, '\\\\')
+    .replace(/^\\\\\?\\/, '')
+    .replace(/^\/\/\?\/UNC\//, '//')
+    .replace(/^\/\/\?\//, '');
+
 const normalizeViteId = (id: string) => {
   if (process.platform !== 'win32') return id;
 
   const hasFsPrefix = id.startsWith(VITE_FS_PREFIX);
-  const rawPath = hasFsPrefix ? id.slice(VITE_FS_PREFIX.length) : id;
+  const rawPath = stripWindowsNamespace(
+    hasFsPrefix ? id.slice(VITE_FS_PREFIX.length) : id,
+  );
   if (!path.win32.isAbsolute(rawPath)) return id;
 
   try {
     const resolvedPath = path.win32.resolve(rawPath);
-    const realPath = fs.realpathSync(resolvedPath);
-    return hasFsPrefix ? `${VITE_FS_PREFIX}${normalizePath(realPath)}` : realPath;
+    const realPath = stripWindowsNamespace(fs.realpathSync(resolvedPath));
+    return hasFsPrefix
+      ? `${VITE_FS_PREFIX}${normalizePath(realPath)}`
+      : realPath;
   } catch {
     return id;
   }
