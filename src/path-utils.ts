@@ -21,8 +21,12 @@ const stripWindowsNamespace = (value: string) => {
   return result;
 };
 
-export const normalizeViteId = (id: string) => {
-  if (process.platform !== 'win32') return id;
+export const normalizeViteIdForPlatform = (
+  id: string,
+  platform: NodeJS.Platform,
+  realpathSync: typeof fs.realpathSync = fs.realpathSync,
+) => {
+  if (platform !== 'win32') return id;
 
   const prefix = id.startsWith(VITE_FS_PREFIX) ? VITE_FS_PREFIX : '';
   const rawPath = stripWindowsNamespace(prefix ? id.slice(prefix.length) : id);
@@ -30,9 +34,12 @@ export const normalizeViteId = (id: string) => {
 
   try {
     const resolvedPath = path.win32.resolve(rawPath);
-    const realPath = stripWindowsNamespace(fs.realpathSync(resolvedPath));
+    const realPath = stripWindowsNamespace(realpathSync(resolvedPath));
     return prefix ? `${prefix}${normalizePath(realPath)}` : realPath;
   } catch {
     return id;
   }
 };
+
+export const normalizeViteId = (id: string) =>
+  normalizeViteIdForPlatform(id, process.platform, fs.realpathSync);
