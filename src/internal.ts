@@ -6,6 +6,35 @@ import path from 'node:path';
 import { castArray } from 'lodash-es';
 
 const DEFAULT_ENTRY = path.resolve(process.cwd(), 'tokens.ts');
+const VITE_FS_PREFIX = '/@fs/';
+const WINDOWS_LONG_PATH_PREFIX = '\\\\?\\';
+const WINDOWS_LONG_PATH_PREFIX_POSIX = '//?/';
+const WINDOWS_LONG_PATH_UNC_PREFIX = '\\\\?\\UNC\\';
+const WINDOWS_LONG_PATH_UNC_PREFIX_POSIX = '//?/UNC/';
+
+const stripWindowsLongPathPrefix = (value: string) => {
+  if (value.startsWith(WINDOWS_LONG_PATH_UNC_PREFIX)) {
+    return `\\\\${value.slice(WINDOWS_LONG_PATH_UNC_PREFIX.length)}`;
+  }
+  if (value.startsWith(WINDOWS_LONG_PATH_UNC_PREFIX_POSIX)) {
+    return `//${value.slice(WINDOWS_LONG_PATH_UNC_PREFIX_POSIX.length)}`;
+  }
+  if (value.startsWith(WINDOWS_LONG_PATH_PREFIX)) {
+    return value.slice(WINDOWS_LONG_PATH_PREFIX.length);
+  }
+  if (value.startsWith(WINDOWS_LONG_PATH_PREFIX_POSIX)) {
+    return value.slice(WINDOWS_LONG_PATH_PREFIX_POSIX.length);
+  }
+  return value;
+};
+
+const normalizeViteId = (id: string) => {
+  if (id.startsWith(VITE_FS_PREFIX)) {
+    const rest = id.slice(VITE_FS_PREFIX.length);
+    return `${VITE_FS_PREFIX}${stripWindowsLongPathPrefix(rest)}`;
+  }
+  return stripWindowsLongPathPrefix(id);
+};
 
 export type TokensLoader = (filePath?: string) => Promise<DesignTokens>;
 
@@ -34,10 +63,12 @@ export function createTokensLoader(
       throw new Error('[style-dictionary] Vite server is not available');
     }
 
-    const sourceFile = filePath ?? DEFAULT_ENTRY;
+    const sourceFile = normalizeViteId(filePath ?? DEFAULT_ENTRY);
     const entryFile = await resolveTokenEntry(server, sourceFile);
     const moduleId =
-      entryFile ?? toViteModuleId(server.config.root, sourceFile);
+      normalizeViteId(
+        entryFile ?? toViteModuleId(server.config.root, sourceFile),
+      );
     const module = await server.ssrLoadModule(moduleId);
     return (module?.default ?? module) as DesignTokens;
   };
@@ -136,8 +167,9 @@ async function resolveTokenEntry(
   server: ViteDevServer,
   sourceFile: string,
 ): Promise<string | null> {
+  const normalizedSource = normalizeViteId(sourceFile);
   const resolved = await server.pluginContainer.resolveId(
-    sourceFile,
+    normalizedSource,
     undefined,
     { ssr: true },
   );
@@ -148,7 +180,7 @@ async function resolveTokenEntry(
   ) {
     return null;
   }
-  return resolved.id;
+  return normalizeViteId(resolved.id);
 }
 
 export const getGeneratedFiles = ({ platforms }: Config, root: string): string[] =>
