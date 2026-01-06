@@ -8,9 +8,11 @@ const VITE_FS_PREFIX = '/@fs/';
 // doesn't try to load literal "/@fs//?/" paths on Windows.
 const WINDOWS_NAMESPACE_PREFIXES: Array<[RegExp, string]> = [
   [/^\\\\\?\\UNC\\/, '\\\\'],
+  [/^\\\?\\UNC\\/, '\\\\'],
   [/^\\\\\?\\/, ''],
-  [/^\/\/\?\/UNC\//, '//'],
-  [/^\/\/\?\//, ''],
+  [/^\\\?\\/, ''],
+  [/^\/+\?\/UNC\//, '//'],
+  [/^\/+\?\//, ''],
 ];
 
 const stripWindowsNamespace = (value: string) => {
