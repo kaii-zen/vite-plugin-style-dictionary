@@ -3,7 +3,7 @@ import { normalizeViteIdForPlatform } from '../src/path-utils';
 
 describe('normalizeViteIdForPlatform', () => {
   it('strips windows namespace prefix from /@fs/ ids', () => {
-    const realpathSync = vi.fn((value: string) => value);
+    const realpathSync = vi.fn((value: string) => value) as (value: string) => string;
     const id = '/@fs//?/C:/Users/Runner/AppData/Local/Temp/vite-sd/tokens.ts';
 
     const normalized = normalizeViteIdForPlatform(id, 'win32', realpathSync);
@@ -17,7 +17,7 @@ describe('normalizeViteIdForPlatform', () => {
   });
 
   it('returns the input unchanged on non-windows platforms', () => {
-    const realpathSync = vi.fn((value: string) => value);
+    const realpathSync = vi.fn((value: string) => value) as (value: string) => string;
     const id = '/@fs//?/C:/Users/Runner/AppData/Local/Temp/vite-sd/tokens.ts';
 
     const normalized = normalizeViteIdForPlatform(id, 'linux', realpathSync);

@@ -21,10 +21,14 @@ const stripWindowsNamespace = (value: string) => {
   return result;
 };
 
+type RealpathSync = (value: string) => string;
+
+const defaultRealpathSync = fs.realpathSync as RealpathSync;
+
 export const normalizeViteIdForPlatform = (
   id: string,
   platform: NodeJS.Platform,
-  realpathSync: typeof fs.realpathSync = fs.realpathSync,
+  realpathSync: RealpathSync = defaultRealpathSync,
 ) => {
   if (platform !== 'win32') return id;
 
