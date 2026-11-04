@@ -263,6 +263,43 @@ describe('build timing and HMR behavior', () => {
     expect(close).toHaveBeenCalledTimes(1);
   });
 
+  it('externalizes dependencies in the build server even when the host inlines them', async () => {
+    const root = '/root/project';
+    createServerMock.mockResolvedValue({
+      close: vi.fn().mockResolvedValue(undefined),
+      config: { root },
+      pluginContainer: {
+        resolveId: vi.fn().mockResolvedValue({ id: path.join(root, 'tokens.ts') }),
+      },
+    });
+
+    const plugin = styleDictionaryPlugin({
+      source: ['tokens.ts'],
+      platforms: {
+        web: { buildPath: 'dist', files: [{ destination: 'tokens.json' }] },
+      },
+    });
+
+    const alias = [{ find: '@', replacement: '/root/project/src' }];
+    await runHook(plugin.configResolved, {
+      root,
+      mode: 'test',
+      command: 'serve',
+      logger: { error: vi.fn() },
+      logLevel: 'info',
+      resolve: { alias, noExternal: true, external: ['node:fs'] },
+      define: {},
+      css: {},
+      plugins: [plugin],
+    } as never);
+
+    expect(createServer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        resolve: expect.objectContaining({ alias, noExternal: [], external: [] }),
+      }),
+    );
+  });
+
   it('builds once in test mode without attaching watchers', async () => {
     const root = '/root/project';
     const close = vi.fn().mockResolvedValue(undefined);

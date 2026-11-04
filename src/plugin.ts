@@ -113,7 +113,10 @@ async function withBuildServer(
     root: config.root,
     mode,
     logLevel: config.logLevel,
-    resolve: config.resolve,
+    // The build loads token files in Node, so it externalizes dependencies as usual even when the
+    // host inlines them all (e.g. Vitest browser mode sets `noExternal: true`), which would make
+    // Vite evaluate CommonJS packages such as React as ESM.
+    resolve: { ...config.resolve, noExternal: [], external: [] },
     define: config.define,
     css: config.css,
     plugins,
