@@ -243,6 +243,7 @@ describe('build timing and HMR behavior', () => {
 
     await runHook(plugin.configResolved, {
       root,
+      configFile: path.join(root, 'vite.config.ts'),
       mode: 'production',
       command: 'build',
       logger: { error: vi.fn() },
@@ -255,12 +256,77 @@ describe('build timing and HMR behavior', () => {
 
     expect(StyleDictionaryMock.buildAllPlatformsMock).toHaveBeenCalledTimes(1);
     expect(createServer).toHaveBeenCalledTimes(1);
-    expect(createServer).toHaveBeenCalledWith(
-      expect.objectContaining({
-        plugins: [otherPlugin],
-      }),
-    );
     expect(close).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives the build server fresh plugins from the host's config file, never the host's instances", async () => {
+    resetVitestDetection();
+    const root = '/root/project';
+    const configFile = path.join(root, 'vite.config.ts');
+    createServerMock.mockResolvedValue({
+      close: vi.fn().mockResolvedValue(undefined),
+      config: { root },
+      pluginContainer: {
+        resolveId: vi.fn().mockResolvedValue({ id: path.join(root, 'tokens.ts') }),
+      },
+    });
+
+    const plugin = styleDictionaryPlugin({
+      source: ['tokens.ts'],
+      platforms: {
+        web: { buildPath: 'dist', files: [{ destination: 'tokens.json' }] },
+      },
+    });
+
+    await runHook(plugin.configResolved, {
+      root,
+      configFile,
+      mode: 'production',
+      command: 'build',
+      logger: { error: vi.fn() },
+      logLevel: 'info',
+      resolve: {},
+      define: {},
+      css: {},
+      plugins: [plugin, { name: 'other' }],
+    } as never);
+
+    const [serverConfig] = createServerMock.mock.calls[0];
+    expect(serverConfig).toEqual(
+      expect.objectContaining({ configFile, styleDictionaryTokenServer: true }),
+    );
+    expect(serverConfig.plugins).toBeUndefined();
+  });
+
+  it('stays inactive inside its own build server', async () => {
+    resetVitestDetection();
+    const root = '/root/project';
+    const plugin = styleDictionaryPlugin({
+      source: ['tokens.ts'],
+      platforms: {
+        web: { buildPath: 'dist', files: [{ destination: 'tokens.json' }] },
+      },
+    });
+    const tokenServerConfig = {
+      root,
+      configFile: path.join(root, 'vite.config.ts'),
+      mode: 'production',
+      command: 'serve',
+      logger: { error: vi.fn() },
+      styleDictionaryTokenServer: true,
+      plugins: [plugin],
+    };
+    const watcher = { add: vi.fn() };
+
+    await runHook(plugin.configResolved, tokenServerConfig as never);
+    await runHook(plugin.configureServer, {
+      config: tokenServerConfig,
+      watcher,
+    } as never);
+
+    expect(createServer).not.toHaveBeenCalled();
+    expect(StyleDictionaryMock.buildAllPlatformsMock).not.toHaveBeenCalled();
+    expect(watcher.add).not.toHaveBeenCalled();
   });
 
   it('externalizes dependencies in the build server even when the host inlines them', async () => {
@@ -355,7 +421,7 @@ describe('build timing and HMR behavior', () => {
     expect(StyleDictionaryMock.buildAllPlatformsMock).toHaveBeenCalledTimes(1);
     expect(createServer).toHaveBeenCalledWith(
       expect.objectContaining({
-        plugins: [],
+        configFile: false,
         server: expect.objectContaining({
           watch: null,
           hmr: false,

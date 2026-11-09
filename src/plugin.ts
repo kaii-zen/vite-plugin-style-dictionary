@@ -1,5 +1,6 @@
 import { createServer } from 'vite';
 import type {
+  InlineConfig,
   Plugin,
   Logger,
   ResolvedConfig,
@@ -20,6 +21,10 @@ import {
 const PLUGIN_NAME = 'style-dictionary-plugin';
 const PARSER_NAME = 'style-dictionary-vite-loader';
 const MATCH_ANY_FILE = /./;
+// Set on the token server's config, so this plugin's own instance there stays inactive. Vite
+// keeps unknown keys, so it reaches the resolved config.
+const TOKEN_SERVER_FLAG = 'styleDictionaryTokenServer';
+const tokenServerMarker = { [TOKEN_SERVER_FLAG]: true };
 
 export default function styleDictionaryPlugin(sdConfig: Config): Plugin {
   let devServer: ViteDevServer | null = null;
@@ -31,12 +36,13 @@ export default function styleDictionaryPlugin(sdConfig: Config): Plugin {
     name: PLUGIN_NAME,
     enforce: 'pre',
     async configureServer(server) {
-      if (isTestRun(server.config)) return;
+      if (isTestRun(server.config) || isTokenServer(server.config)) return;
       devServer = server;
       server.watcher.add(toAbsoluteGlobs(server.config.root, sources));
       await buildStyleDictionary(config, server.config.logger, server);
     },
     async configResolved(resolved) {
+      if (isTokenServer(resolved)) return;
       if (isTestRun(resolved)) {
         await withTokenServer(resolved, async (server) => {
           devServer = server;
@@ -106,20 +112,12 @@ async function withBuildServer(
   run: (server: ViteDevServer) => Promise<void>,
 ) {
   const mode = config.mode === 'test' ? 'development' : config.mode;
-  const plugins =
-    config.mode === 'test' ? [] : filterTokenPlugins(config.plugins);
   const buildServer = await createServer({
-    configFile: false,
+    ...tokenServerSettings(config),
     root: config.root,
     mode,
     logLevel: config.logLevel,
-    // The build loads token files in Node, so it externalizes dependencies as usual even when the
-    // host inlines them all (e.g. Vitest browser mode sets `noExternal: true`), which would make
-    // Vite evaluate CommonJS packages such as React as ESM.
-    resolve: { ...config.resolve, noExternal: [], external: [] },
-    define: config.define,
-    css: config.css,
-    plugins,
+    ...tokenServerMarker,
     server: {
       middlewareMode: true,
       hmr: false,
@@ -136,7 +134,29 @@ async function withBuildServer(
   }
 }
 
+// The token server loads the host's config file again rather than reusing the host's plugins: a
+// plugin instance belongs to one Vite instance, and the token server's `configResolved` would
+// reconfigure the host's instances for a dev server in the middle of a build. Loading the file
+// gives the token server fresh instances of the same plugins.
+function tokenServerSettings(config: ResolvedConfig): InlineConfig {
+  if (config.configFile && config.mode !== 'test') {
+    return { configFile: config.configFile };
+  }
+  return {
+    configFile: false,
+    // The build loads token files in Node, so it externalizes dependencies as usual even when the
+    // host inlines them all (e.g. Vitest browser mode sets `noExternal: true`), which would make
+    // Vite evaluate CommonJS packages such as React as ESM.
+    resolve: { ...config.resolve, noExternal: [], external: [] },
+    define: config.define,
+    css: config.css,
+  };
+}
+
 const withTokenServer = withBuildServer;
+
+const isTokenServer = (config: ResolvedConfig) =>
+  Boolean((config as Record<string, unknown>)[TOKEN_SERVER_FLAG]);
 
 const isTestRun = (config?: ResolvedConfig) =>
   config?.mode === 'test' ||
@@ -145,12 +165,6 @@ const isTestRun = (config?: ResolvedConfig) =>
 
 const isVitestCli = () =>
   !!process.env.VITEST || process.argv.some((arg) => arg.includes('vitest'));
-
-const filterTokenPlugins = (plugins: readonly Plugin[]) =>
-  plugins.filter(
-    (plugin) =>
-      plugin.name !== PLUGIN_NAME && !plugin.name.startsWith('vitest:'),
-  );
 
 async function buildStyleDictionary(
   sdConfig: Config,
