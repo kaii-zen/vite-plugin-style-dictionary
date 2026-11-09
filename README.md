@@ -4,7 +4,7 @@
 
 ## Why
 
-Style Dictionary runs in Node and loads files directly from disk. That means it does not see Vite transforms, TS path aliases, or your module graph, so TS token files and aliased imports often fail unless you add build steps or duplicate config. This plugin runs token loading through Vite itself, so your token entry can be real app code (TS/JS, aliases, imports) and Style Dictionary outputs still regenerate during dev, build, and tests without extra scripts. It does this by creating a lightweight Vite server and loading the token module via Vite's `ssrLoadModule`, then feeding the default export into Style Dictionary.
+Style Dictionary runs in Node and loads files directly from disk. That means it does not see Vite transforms, TS path aliases, or your module graph, so TS token files and aliased imports often fail unless you add build steps or duplicate config. This plugin runs token loading through Vite itself, so your token entry can be real app code (TS/JS, aliases, imports) and Style Dictionary outputs still regenerate during dev, build, and tests without extra scripts. It does this by creating a lightweight Vite server and loading the token module via Vite's `ssrLoadModule`, then feeding the default export into Style Dictionary. That server loads your Vite config file again, so token files see the same plugins as your app, as separate instances that don't affect your build.
 
 ## Features
 
